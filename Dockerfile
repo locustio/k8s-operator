@@ -14,8 +14,8 @@ ENV PYTHONUNBUFFERED=1
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /operator
-COPY ./operator .
+WORKDIR /locust_operator
+COPY ./locust_operator .
 
 ENTRYPOINT ["kopf", "run"]
-CMD ["operator.py"]
+CMD ["locust_operator.py"]
