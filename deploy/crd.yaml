@@ -1,0 +1,93 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: locusttests.locust.cloud
+spec:
+  group: locust.cloud
+  scope: Namespaced
+  names:
+    plural: locusttests
+    singular: locusttest
+    kind: LocustTest
+    shortNames:
+      - lt
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["workers"]
+              properties:
+                image:
+                  type: string
+                  description: "Container image with locust installed (used for master & workers if workerImage unset)"
+                  default: "locustio/locust:2.31.5"
+                workerImage:
+                  type: string
+                  description: "Optional worker image override"
+                workers:
+                  type: integer
+                  minimum: 1
+                  description: "Number of worker replicas"
+                host:
+                  type: string
+                  description: "Target host (passed to master --host)"
+                extraArgs:
+                  type: array
+                  items:
+                    type: string
+                  description: "Extra CLI args for locust master"
+                env:
+                  type: array
+                  description: "Extra env vars for both master and workers"
+                  items:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      value: { type: string }
+                resources:
+                  type: object
+                  description: "K8s resources for master/worker containers"
+                  properties:
+                    master:
+                      type: object
+                    worker:
+                      type: object
+                service:
+                  type: object
+                  description: "Service type for the Locust Web UI"
+                  properties:
+                    type:
+                      type: string
+                      enum: ["ClusterIP", "NodePort", "LoadBalancer"]
+                      default: "ClusterIP"
+                locustfile:
+                  type: object
+                  description: "Inline locustfile content -> ConfigMap"
+                  properties:
+                    filename:
+                      type: string
+                      default: "locustfile.py"
+                    content:
+                      type: string
+                webPort:
+                  type: integer
+                  default: 8089
+                masterPorts:
+                  type: object
+                  properties:
+                    p1: { type: integer, default: 5557 }
+                    p2: { type: integer, default: 5558 }
+            status:
+              type: object
+              properties:
+                phase: { type: string }
+                masterService: { type: string }
+                message: { type: string }
+      subresources:
+        status: {}
