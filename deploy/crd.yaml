@@ -33,6 +33,7 @@ spec:
                 workers:
                   type: integer
                   minimum: 1
+                  default: 1
                   description: "Number of worker replicas"
                 host:
                   type: string

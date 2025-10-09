@@ -18,4 +18,4 @@ WORKDIR /locust_operator
 COPY ./locust_operator .
 
 ENTRYPOINT ["kopf", "run"]
-CMD ["locust_operator.py"]
+CMD ["main.py"]

@@ -5,4 +5,4 @@ API_VERSION = GROUP + "/" + VERSION
 KIND = "LocustTest"
 PLURAL = "locusttests"
 
-FINALIZER = "locusttests.finalizers." + GROUP
+FINALIZER = f"{PLURAL}.finalizers.{GROUP}"
