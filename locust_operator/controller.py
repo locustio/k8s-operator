@@ -38,7 +38,6 @@ class LocustTest:
     def reconcile(self):
         spec = LocustTestSpec.model_validate(self.body.get("spec", {}))
 
-        # Finalizer (idempotent)
         # fins = self.body["metadata"].get("finalizers", [])
         # if FINALIZER not in fins:
         #     self.custom.patch_namespaced_custom_object(
@@ -74,7 +73,7 @@ class LocustTest:
                      lambda b=wsvc: self.core.patch_namespaced_service(web_svc_name(self.name), self.ns, b),
                      wsvc)
 
-        # Master & Workers
+        # Master and Workers
         master_dep = build_master_deployment(
             self.ns, self.name, image, has_cm, filename, spec.host or "",
             spec.webPort, spec.masterPorts.p1, spec.masterPorts.p2,

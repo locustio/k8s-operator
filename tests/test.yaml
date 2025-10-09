@@ -1,12 +1,12 @@
 apiVersion: locust.cloud/v1
 kind: LocustTest
 metadata:
-  name: load-test
+  name: load-test-v1
   namespace: default
 spec:
   image: locustio/locust:latest
   workers: 5
-  host: "https://locust.cloud"
+  host: "https://locust.cloud/api/v1"
   env:
     - name: LOCUST_HEADLESS
       value: "false"
