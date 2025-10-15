@@ -4,5 +4,6 @@ API_VERSION = GROUP + "/" + VERSION
 
 KIND = "LocustTest"
 PLURAL = "locusttests"
+LOCUST_TEST_RESOURCE = f"{PLURAL}.{VERSION}.{GROUP}"
 
-FINALIZER = f"{PLURAL}.finalizers.{GROUP}"
+ANNOTATION_PREFIX = f"operator.{GROUP}"

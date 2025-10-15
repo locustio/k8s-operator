@@ -1,40 +1,76 @@
-from typing import Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Annotated, Literal, Optional
+from pydantic import BaseModel, BeforeValidator, Field, model_validator
+
+
+class AnnotationsMixin:
+    annotations: Optional[dict[str, str]] = None
+
+
+class LabelsMixin:
+    labels: Optional[dict[str, str]] = None
 
 
 class EnvVar(BaseModel):
     name: str
     value: str = ""
 
+
+class LocalObjectReference(BaseModel):
+    name: str
+
+
 class Resources(BaseModel):
-    master: Optional[Dict] = None
-    worker: Optional[Dict] = None
+    requests: Optional[dict[str, str]] = None
+    limits: Optional[dict[str, str]] = None
 
-class ServiceCfg(BaseModel):
-    type: str = Field(default="ClusterIP", pattern="^(ClusterIP|NodePort|LoadBalancer)$")
 
-class MasterPorts(BaseModel):
-    p1: int = 5557
-    p2: int = 5558
+class PodSpec(BaseModel, AnnotationsMixin, LabelsMixin):
+    resources: Optional[Resources] = None
 
-class LocustfileSpec(BaseModel):
+
+class LocustfileInline(BaseModel):
     filename: str = "locustfile.py"
     content: str
 
-class LocustTestSpec(BaseModel):
-    image: str = "locustio/locust:2.31.5"
-    workerImage: Optional[str] = None
-    workers: int = Field(ge=1)
-    host: Optional[str] = None
-    extraArgs: List[str] = []
-    env: List[EnvVar] = []
-    resources: Optional[Resources] = None
-    service: ServiceCfg = ServiceCfg()
+
+class LocustfileSpec(BaseModel):
+    inline: Optional[LocustfileInline] = None
+    configMap: Optional[LocalObjectReference] = None
+
+    @model_validator(mode="after")
+    def _only_one(self):
+        if self.inline is not None and self.configMap is not None:
+            raise ValueError("Provide exactly one of `locustfile.inline` or `locustfile.configMap`")
+        return self
+
+
+def _parse_args(args):
+    import shlex
+    if args is None:
+        return None
+    if isinstance(args, str):
+        return shlex.split(args)
+    
+    raise TypeError("`args` must be a string")
+
+class LocustTestSpec(BaseModel, AnnotationsMixin, LabelsMixin):
+    image: str = "locustio/locust:latest"
+    workers: int = Field(ge=1, default=1)
+    args: Annotated[list[str], BeforeValidator(_parse_args)] = []
+    env: list[EnvVar] = []
+
+    imagePullPolicy: Optional[Literal["Always", "IfNotPresent", "Never"]] = None
+    imagePullSecrets: Optional[list[LocalObjectReference]] = None
+
+    master: Optional[PodSpec] = None
+    worker: Optional[PodSpec] = None
+
     locustfile: Optional[LocustfileSpec] = None
-    webPort: int = 8089
-    masterPorts: MasterPorts = MasterPorts()
+
 
 class LocustTestStatus(BaseModel):
-    phase: Optional[str] = None
-    masterService: Optional[str] = None
-    message: Optional[str] = None
+    state: Optional[str] = None
+    fail_ratio: Optional[str] = None
+    total_rps: Optional[str] = None
+    user_count: Optional[str] = None
+    worker_count: Optional[str] = None

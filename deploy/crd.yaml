@@ -10,6 +10,7 @@ spec:
     singular: locusttest
     kind: LocustTest
     shortNames:
+      - locust
       - lt
   versions:
     - name: v1
@@ -23,72 +24,154 @@ spec:
               type: object
               required: ["workers"]
               properties:
+                labels:
+                  description: Labels to all generated resources
+                  type: object
+                  additionalProperties:
+                    type: string
+                annotations:
+                  description: Annotations to all generated resources
+                  type: object
+                  additionalProperties:
+                    type: string
                 image:
+                  description: Container image with locust installed
                   type: string
-                  description: "Container image with locust installed (used for master & workers if workerImage unset)"
-                  default: "locustio/locust:2.31.5"
-                workerImage:
+                  default: locustio/locust:latest
+                imagePullPolicy:
+                  description: Image pull policy
                   type: string
-                  description: "Optional worker image override"
+                  enum:
+                    - Always
+                    - IfNotPresent
+                    - Never
+                imagePullSecrets:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                    required: ["name"]
                 workers:
+                  description: Number of worker replicas
                   type: integer
                   minimum: 1
                   default: 1
-                  description: "Number of worker replicas"
-                host:
+                args:
+                  description: Args for locust
                   type: string
-                  description: "Target host (passed to master --host)"
-                extraArgs:
-                  type: array
-                  items:
-                    type: string
-                  description: "Extra CLI args for locust master"
                 env:
+                  description: Extra environment variables
                   type: array
-                  description: "Extra env vars for both master and workers"
                   items:
                     type: object
                     properties:
                       name: { type: string }
                       value: { type: string }
-                resources:
+                master:
+                  description: Master configuration
                   type: object
-                  description: "K8s resources for master/worker containers"
                   properties:
-                    master:
+                    labels:
+                      description: Master pod labels
                       type: object
-                    worker:
+                      additionalProperties:
+                        type: string
+                    annotations:
+                      description: Master pod annotations
                       type: object
-                service:
+                      additionalProperties:
+                        type: string
+                    resources:
+                      description: Master resources
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        limits:
+                          type: object
+                          additionalProperties:
+                            type: string
+                worker:
+                  description: Worker configuration
                   type: object
-                  description: "Service type for the Locust Web UI"
                   properties:
-                    type:
-                      type: string
-                      enum: ["ClusterIP", "NodePort", "LoadBalancer"]
-                      default: "ClusterIP"
+                    labels:
+                      description: Worker pods labels
+                      type: object
+                      additionalProperties:
+                        type: string
+                    annotations:
+                      description: Worker pods annotations
+                      type: object
+                      additionalProperties:
+                        type: string
+                    resources:
+                      description: Worker resources
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        limits:
+                          type: object
+                          additionalProperties:
+                            type: string
                 locustfile:
                   type: object
-                  description: "Inline locustfile content -> ConfigMap"
+                  description: Locustfile
                   properties:
-                    filename:
-                      type: string
-                      default: "locustfile.py"
-                    content:
-                      type: string
-                webPort:
-                  type: integer
-                  default: 8089
-                masterPorts:
-                  type: object
-                  properties:
-                    p1: { type: integer, default: 5557 }
-                    p2: { type: integer, default: 5558 }
+                    inline:
+                      type: object
+                      properties:
+                        filename:
+                          type: string
+                          default: "locustfile.py"
+                        content:
+                          type: string
+                      required: ["content"]
+                    configMap:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                      required: ["name"]
+                  oneOf:
+                    - required: ["inline"]
+                    - required: ["configMap"]
             status:
               type: object
               properties:
-                phase: { type: string }
-                masterService: { type: string }
-                message: { type: string }
-      subresources:
-        status: {}
+                state: { type: string }
+                fail_ratio: { type: string }
+                total_rps: { type: string }
+                user_count: { type: string }
+                worker_count: { type: string }
+      additionalPrinterColumns:
+        - name: state
+          description: Locust current state
+          type: string
+          jsonPath: .status.state
+        - name: fail_ratio
+          description: Locust fail ratio
+          type: string
+          jsonPath: .status.fail_ratio
+        - name: RPS
+          description: Locust total RPS
+          type: string
+          jsonPath: .status.total_rps
+        - name: users
+          description: Locust user count
+          type: string
+          jsonPath: .status.user_count
+        - name: workers
+          description: Locust worker count
+          type: string
+          jsonPath: .status.worker_count
+        - name: age
+          type: date
+          jsonPath: .metadata.creationTimestamp
