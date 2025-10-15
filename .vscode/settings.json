@@ -1,0 +1,18 @@
+{
+  "python.languageServer": "Pylance",
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/.tox/": true,
+    "**/__pycache__": true,
+    ".mypy_cache/**/*": true
+  },
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "editor.defaultFormatter": "charliermarsh.ruff",
+  "python.analysis.typeCheckingMode": "off" // Remove warnings from kopf decorators
+}
