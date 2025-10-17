@@ -3,13 +3,25 @@ kind: LocustTest
 metadata:
   name: load-test-v1
 spec:
+  labels:
+    hello: world
   image: locustio/locust:latest
+  imagePullPolicy: Always
   args:
     --host "https://locust.cloud/api/v1"
     --users 2
   env:
     - name: LOCUST_HEADLESS
       value: "false"
+  master:
+    annotations:
+      my_master_annotation: "123"
+    labels:
+      my_master_label: "123"
+    resources:
+      requests:
+        cpu: 1
+        memory: "1M"
   locustfile:
     inline:
       content: |
@@ -22,4 +34,4 @@ spec:
             def add_to_cart(self):
                 self.client.get("/not_found")
     # configMap:
-    #   name: abc          
+    #   name: test-configmap          

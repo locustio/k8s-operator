@@ -1,100 +1,93 @@
-import json
+import datetime
 import logging
-import os
-import random
-import time
 
 import kopf
-from kubernetes import config, client
-import requests
-
-from constants import GROUP, PLURAL, VERSION
+from constants import IN_CLUSTER, LABEL_ANNOTATION_PREFIX, LOCUST_TEST_RESOURCE
 from controller import LocustTest
+from kubernetes import client, config
+
+try:
+    if IN_CLUSTER:
+        config.load_incluster_config()
+    else:
+        config.load_kube_config()
+except config.config_exception.ConfigException:
+    raise Exception("Unable to configure kubernetes client!")
+
+
+core_api = client.CoreV1Api()
 
 
 @kopf.on.startup()
-def _startup(settings: kopf.OperatorSettings, **_):
-    print("on_startup")
+def on_startup(settings: kopf.OperatorSettings, logger: kopf.Logger, **_):
+    logger.info("Starting Locust Operator.")
 
-    # TODO: ---- TESTS ----
-    settings.peering.standalone = True
-    settings.watching.server_timeout = 30
-    settings.watching.client_timeout = 35
+    settings.watching.server_timeout = 120
+    settings.watching.client_timeout = 150
+    settings.watching.connect_timeout = 5
 
-    settings.posting.level = (
-        logging.INFO if (os.getenv("DEBUG") is None) else logging.DEBUG
+    settings.networking.request_timeout = 10
+
+    # Kopf posts all logger messages as events as well, we want to limit it
+    # So we only post the highest level possible, we could disable posting
+    # entirely but then kopf.event() would also not post anything.
+    # https://github.com/nolar/kopf/issues/1186
+    settings.posting.enabled = True
+    settings.posting.level = logging.CRITICAL
+
+    settings.posting.reporting_component = "locust-operator"
+    settings.posting.event_name_prefix = "locust-event"
+
+    settings.persistence.finalizer = f"{LABEL_ANNOTATION_PREFIX}/kopf-finalizer"
+    settings.persistence.progress_storage = kopf.AnnotationsProgressStorage(
+        prefix=LABEL_ANNOTATION_PREFIX
     )
-    # ---------------
-
-    try:
-        if os.getenv("KUBERNETES_SERVICE_HOST"):
-            config.load_incluster_config()
-        else:
-            config.load_kube_config()
-    except config.config_exception.ConfigException:
-        raise Exception("Unable to configure kubernetes client!")
+    settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(
+        prefix=LABEL_ANNOTATION_PREFIX
+    )
 
 
-@kopf.on.create(GROUP, VERSION, PLURAL)
-def on_create(body, meta, namespace, **_):
-    r = LocustTest(namespace, meta["name"], body)
-    r.reconcile()
+@kopf.on.probe(id="now")
+def get_current_timestamp(logger: kopf.Logger, **_) -> str:
+    logger.debug("on_probe")
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-@kopf.on.update(GROUP, VERSION, PLURAL)
-def on_update(body, meta, namespace, **_):
-    r = LocustTest(namespace, meta["name"], body)
-    r.reconcile()
+@kopf.on.create(LOCUST_TEST_RESOURCE)
+def on_create(
+    name, namespace, patch: kopf.Patch, spec: kopf.Body, logger: kopf.Logger, **_
+):
+    logger.info(f"Initializing LocustTest name={name} namespace={namespace}")
+
+    locust_test = LocustTest(name, namespace, spec, patch, logger)
+    locust_test.reconcile()
 
 
-@kopf.on.delete(GROUP, VERSION, PLURAL)
-def on_delete(body, meta, namespace, **_):
-    r = LocustTest(namespace, meta["name"], body)
-    r.finalize()
+@kopf.on.field(LOCUST_TEST_RESOURCE, field="spec.workers", old=kopf.PRESENT)
+def update_worker_count(old, new, body, logger: kopf.Logger, **_):
+    logger.info(f"Updating worker count {old} -> {new}")
+
+    # TODO: patch workers
+
+    kopf.event(
+        body,
+        type="Normal",
+        reason="Scaled",
+        message=f"Updated worker count ({old} -> {new})",
+    )
 
 
-@kopf.daemon(GROUP, VERSION, PLURAL, initial_delay=5.0)
-def stats_daemon(spec, name, namespace, stopped, **_):
-    interval = float(spec.get("metrics", {}).get("intervalSeconds", 5))
-    web_port = int(spec.get("webPort", 8089))
+@kopf.daemon(LOCUST_TEST_RESOURCE, initial_delay=5.0)
+async def stats_daemon(
+    name,
+    namespace,
+    patch: kopf.Patch,
+    spec: kopf.Body,
+    logger: kopf.Logger,
+    stopped: kopf.DaemonStopped,
+    **_,
+):
+    logger.debug(f"Updating LocustTest name={name} namespace={namespace} status")
 
-    # url = f"http://{name}-web.{namespace}.svc.cluster.local:{web_port}/stats/requests"
-    def _make_request():
-        svc = f"{name}-web:{web_port}"
-        path = "stats/requests"
-
-        raw = client.CoreV1Api().connect_get_namespaced_service_proxy_with_path(
-            name=svc,
-            namespace=namespace,
-            path=path,
-        )
-        # FIXME: Very unsafe
-        return eval(raw)
-    
-    backoff = 1.0
-    while not stopped.is_set():
-        t0 = time.time()
-        try:
-            resp = _make_request()
-            print(f"""
-    state: {resp["state"]}
-    fail_ratio: {resp["fail_ratio"]}
-    total_rps: {resp["total_rps"]}
-    user_count: {resp["user_count"]}
-    worker_count: {resp["worker_count"]}
-""")
-            # if resp.ok:
-            #     data = resp.json() or {}
-            #     print(f"[{namespace}/{name}] polled {data}")
-            #     backoff = 1.0
-            # else:
-            #     print(f"[{namespace}/{name}] HTTP {resp.status_code} from {url}")
-        except Exception as e:
-            print(f"[{namespace}/{name}] poll error: {e}")
-            stopped.wait(min(backoff, interval))
-            backoff = min(backoff * 2.0, 30.0)
-
-        elapsed = time.time() - t0
-        base = max(0.0, interval - elapsed)
-        jitter = random.uniform(-0.2, 0.2) * interval
-        stopped.wait(max(0.0, base + jitter))
+    locust_test = LocustTest(name, namespace, spec, patch, logger)
+    await locust_test.stats_daemon(stopped)

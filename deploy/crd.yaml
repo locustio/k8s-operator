@@ -16,6 +16,8 @@ spec:
     - name: v1
       served: true
       storage: true
+      subresources:
+        status: {}
       schema:
         openAPIV3Schema:
           type: object
@@ -29,11 +31,7 @@ spec:
                   type: object
                   additionalProperties:
                     type: string
-                annotations:
-                  description: Annotations to all generated resources
-                  type: object
-                  additionalProperties:
-                    type: string
+                    default: ""
                 image:
                   description: Container image with locust installed
                   type: string
@@ -42,8 +40,8 @@ spec:
                   description: Image pull policy
                   type: string
                   enum:
-                    - Always
                     - IfNotPresent
+                    - Always
                     - Never
                 imagePullSecrets:
                   type: array
@@ -59,16 +57,18 @@ spec:
                   minimum: 1
                   default: 1
                 args:
-                  description: Args for locust
+                  description: Arguments to locust
                   type: string
+                  default: ""
                 env:
-                  description: Extra environment variables
+                  description: List of environment variables to set in the containers
                   type: array
                   items:
                     type: object
                     properties:
                       name: { type: string }
                       value: { type: string }
+                    required: ["name"]
                 master:
                   description: Master configuration
                   type: object
@@ -78,11 +78,13 @@ spec:
                       type: object
                       additionalProperties:
                         type: string
+                        default: ""
                     annotations:
                       description: Master pod annotations
                       type: object
                       additionalProperties:
                         type: string
+                        default: ""
                     resources:
                       description: Master resources
                       type: object
@@ -90,11 +92,11 @@ spec:
                         requests:
                           type: object
                           additionalProperties:
-                            type: string
+                            x-kubernetes-int-or-string: true
                         limits:
                           type: object
                           additionalProperties:
-                            type: string
+                            x-kubernetes-int-or-string: true
                 worker:
                   description: Worker configuration
                   type: object
@@ -104,11 +106,13 @@ spec:
                       type: object
                       additionalProperties:
                         type: string
+                        default: ""
                     annotations:
                       description: Worker pods annotations
                       type: object
                       additionalProperties:
                         type: string
+                        default: ""
                     resources:
                       description: Worker resources
                       type: object
@@ -116,11 +120,11 @@ spec:
                         requests:
                           type: object
                           additionalProperties:
-                            type: string
+                            x-kubernetes-int-or-string: true
                         limits:
                           type: object
                           additionalProperties:
-                            type: string
+                            x-kubernetes-int-or-string: true
                 locustfile:
                   type: object
                   description: Locustfile
@@ -143,14 +147,19 @@ spec:
                   oneOf:
                     - required: ["inline"]
                     - required: ["configMap"]
+                metrics:
+                  type: object
+                  properties:
+                    intervalSeconds: { type: integer, default: 5 }
             status:
               type: object
               properties:
                 state: { type: string }
+                message: { type: string }
                 fail_ratio: { type: string }
-                total_rps: { type: string }
-                user_count: { type: string }
-                worker_count: { type: string }
+                total_rps: { type: number }
+                user_count: { type: integer }
+                worker_count: { type: integer }
       additionalPrinterColumns:
         - name: state
           description: Locust current state
