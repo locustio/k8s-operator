@@ -55,26 +55,33 @@ def get_current_timestamp(logger: kopf.Logger, **_) -> str:
 
 @kopf.on.create(LOCUST_TEST_RESOURCE)
 def on_create(
-    name, namespace, patch: kopf.Patch, spec: kopf.Spec, logger: kopf.Logger, **_
+    name,
+    namespace,
+    patch: kopf.Patch,
+    body: kopf.Body,
+    logger: kopf.Logger,
+    **_,
 ):
     logger.info(f"Initializing LocustTest name={name} namespace={namespace}")
 
-    locust_test = LocustTest(name, namespace, spec, patch, logger)
+    locust_test = LocustTest(name, namespace, body, patch, logger)
     locust_test.reconcile()
 
 
-@kopf.on.field(LOCUST_TEST_RESOURCE, field="spec.workers", old=kopf.PRESENT)
-def update_worker_count(old, new, body, logger: kopf.Logger, **_):
-    logger.info(f"Updating worker count {old} -> {new}")
+@kopf.on.update(LOCUST_TEST_RESOURCE)
+def on_update(
+    name,
+    namespace,
+    patch: kopf.Patch,
+    body: kopf.Body,
+    logger: kopf.Logger,
+    diff: kopf.Diff,
+    **_,
+):
+    logger.info(f"Updating LocustTest name={name} namespace={namespace}")
 
-    # TODO: patch workers
-
-    kopf.event(
-        body,
-        type="Normal",
-        reason="Scaled",
-        message=f"Updated worker count ({old} -> {new})",
-    )
+    locust_test = LocustTest(name, namespace, body, patch, logger)
+    locust_test.reconcile(diff)
 
 
 @kopf.daemon(LOCUST_TEST_RESOURCE, initial_delay=5.0)
@@ -82,12 +89,12 @@ async def stats_daemon(
     name,
     namespace,
     patch: kopf.Patch,
-    spec: kopf.Spec,
+    body: kopf.Body,
     logger: kopf.Logger,
     stopped: kopf.DaemonStopped,
     **_,
 ):
-    logger.debug(f"Updating LocustTest name={name} namespace={namespace} status")
+    logger.debug("Starting daemon for resource")
 
-    locust_test = LocustTest(name, namespace, spec, patch, logger)
+    locust_test = LocustTest(name, namespace, body, patch, logger)
     await locust_test.stats_daemon(stopped)

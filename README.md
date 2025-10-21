@@ -14,12 +14,18 @@ TODO:
     x-kubernetes-list-type: "map"
     ```
 
-- Handle resource updates, currently we only care about worker counts, all other updates will be reflected in the resource but the stack will not update accordingly
+- Only read() in ensure to be nice to the kubernetes api
 
-- Error handling in kubernetes apis, should we only handle updates when error?
+- If we retry `on_update` because we are waiting for jobs to terminate we should skip ensuring all the other components (for each we always make 2 api requests - read/patch)
 
 - Add defaults for resources
 
-- Better information to the user with events/status
+- Listen to external configmap changes
 
 - Async stats request
+
+- Helm
+
+- A lot of testing!
+
+- Add operator configurations

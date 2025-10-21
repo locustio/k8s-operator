@@ -15,7 +15,17 @@ from objects import (
     build_worker_job,
     ensure,
     exists,
+    to_label_selector_string,
 )
+
+FORCE_RESTART_FIELDS = {
+    ("spec", "image"),
+    ("spec", "args"),
+    ("spec", "env"),
+    ("spec", "master"),
+    ("spec", "worker"),
+    ("spec", "locustfile"),
+}
 
 
 class LocustTest:
@@ -23,24 +33,31 @@ class LocustTest:
         self,
         name,
         namespace,
-        spec: kopf.Spec,
+        body: kopf.Body,
         patch: kopf.Patch,
         logger: kopf.Logger,
     ):
         self.name = name
         self.namespace = namespace
-        self.spec = spec
+        self.spec = body.spec
 
         self._patch = patch
         self._logger = logger
+        self._body = body
 
         self._core = client.CoreV1Api()
         self._batch = client.BatchV1Api()
 
-    def get_labels(self, component) -> dict[str, str]:
+    def base_labels(self) -> dict[str, str]:
         return {
             "app.kubernetes.io/name": "locust",
             "app.kubernetes.io/managed-by": "locust-operator",
+            "app.kubernetes.io/instance": self.name,
+        }
+
+    def get_labels(self, component) -> dict[str, str]:
+        return {
+            **self.base_labels(),
             **self.specific_labels(component),
             **self.spec.get("labels", {}),
         }
@@ -54,13 +71,42 @@ class LocustTest:
             f"{LABEL_ANNOTATION_PREFIX}/component": component,
         }
 
-    def reconcile(self):
+    def reconcile(self, diff: kopf.Diff | None = None):
+        restart = False
+        if diff:
+            restart_fields = [
+                path
+                for _, path, _, _ in diff
+                if path
+                and path[0] == "spec"
+                and tuple(path[:2]) in FORCE_RESTART_FIELDS
+            ]
+            self._logger.info(f"Will restart test: {restart_fields} updated!")
+            restart = any(restart_fields)
+
         cm_name = self.ensure_configmap()
         master_svc = self.ensure_master_service()
+
         # TODO: the user should be able to choose if he wants the webui or not
         self.ensure_webui_service()
-        self.ensure_master(cm_name)
-        self.ensure_worker(cm_name, master_svc)
+
+        if restart:
+            self.delete_jobs()
+
+        try:
+            self.ensure_master(cm_name)
+            self.ensure_worker(cm_name, master_svc)
+        except kopf.TemporaryError:
+            self._patch.status["state"] = "RECONCILING"
+            raise
+
+        if restart:
+            kopf.event(
+                self._body,
+                type="Normal",
+                reason="Restarted",
+                message="Locust run restarted due to spec change",
+            )
 
         self._patch.status["state"] = "CREATED"
 
@@ -252,6 +298,26 @@ class LocustTest:
             ),
             worker,
         )
+
+    def delete_jobs(self):
+        label_selector = to_label_selector_string(self.base_labels())
+
+        jobs = self._batch.list_namespaced_job(
+            self.namespace, label_selector=label_selector
+        ).items
+
+        if not jobs:
+            self._logger.info(f"No Jobs to delete for {self.namespace}/{self.name}.")
+            return
+
+        for job in jobs:
+            job_name = job.metadata.name
+            self._logger.info(f"Deleting Job {self.namespace}/{job_name}")
+            self._batch.delete_namespaced_job(
+                name=job_name,
+                namespace=self.namespace,
+                propagation_policy="Foreground",
+            )
 
     async def stats_daemon(self, stopped: kopf.DaemonStopped):
         interval = self.spec.get("metrics", {}).get("intervalSeconds", 5)

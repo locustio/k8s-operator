@@ -1,6 +1,7 @@
 import shlex
 from typing import TypedDict
 
+import kopf
 from kubernetes import client
 
 MASTER_P1_PORT_NAME = "master-p1"
@@ -28,7 +29,15 @@ def exists(read) -> bool:
 def ensure(create, read, patch, desired):
     # TODO: validate if the existing resource owned by the CR before patching
     try:
-        read()
+        existing = read()
+
+        # If marked for deletion, wait until it’s gone
+        if existing.metadata.deletion_timestamp:
+            raise kopf.TemporaryError(
+                f"{existing.metadata.name} is terminating...",
+                delay=2,
+            )
+
         return patch(desired)
     except client.ApiException as e:
         if e.status == 404:
@@ -205,3 +214,7 @@ def build_worker_job(
         ),
     )
     return job
+
+
+def to_label_selector_string(labels: dict[str, str]) -> str:
+    return ",".join(f"{key}={value}" for key, value in labels.items())
