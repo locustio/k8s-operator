@@ -26,6 +26,12 @@ spec:
               type: object
               required: ["workers"]
               properties:
+                annotations:
+                  description: Annotations to all generated resources
+                  type: object
+                  additionalProperties:
+                    type: string
+                    default: ""
                 labels:
                   description: Labels to all generated resources
                   type: object

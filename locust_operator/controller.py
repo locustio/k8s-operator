@@ -45,6 +45,9 @@ class LocustTest:
             **self.spec.get("labels", {}),
         }
 
+    def get_annotations(self) -> dict[str, str]:
+        return {**self.spec.get("annotations", {})}
+
     def specific_labels(self, component) -> dict[str, str]:
         return {
             f"{LABEL_ANNOTATION_PREFIX}/test-run": self.name,
@@ -93,6 +96,7 @@ class LocustTest:
             filename=locustfile.get("inline").get("filename"),
             content=locustfile.get("inline").get("content"),
             labels=self.get_labels("configmap"),
+            annotations=self.get_annotations(),
         )
 
         kopf.adopt(cm)
@@ -116,6 +120,7 @@ class LocustTest:
         msvc = build_service(
             name=name,
             labels=self.get_labels("master-service"),
+            annotations=self.get_annotations(),
             selector=self.specific_labels("master"),
             # TODO: make type and exposed ports configurable
             type="ClusterIP",
@@ -156,6 +161,7 @@ class LocustTest:
         msvc = build_service(
             name=name,
             labels=self.get_labels("master-webui"),
+            annotations=self.get_annotations(),
             selector=self.specific_labels("master"),
             # TODO: make type and exposed ports configurable
             type="ClusterIP",
@@ -173,7 +179,9 @@ class LocustTest:
         ensure(
             lambda svc=msvc: self._core.create_namespaced_service(self.namespace, svc),
             lambda: self._core.read_namespaced_service(name, self.namespace),
-            lambda svc=msvc: self._core.patch_namespaced_service(name, self.ns, svc),
+            lambda svc=msvc: self._core.patch_namespaced_service(
+                name, self.namespace, svc
+            ),
             msvc,
         )
 
@@ -191,7 +199,8 @@ class LocustTest:
             args=self.spec.get("args", ""),
             env=self.spec.get("env", []),
             cm_name=cm_name,
-            labels={**self.get_labels("master")},
+            annotations=self.get_annotations(),
+            labels=self.get_labels("master"),
             pod_annotations=pod_spec.get("annotations", {}),
             pod_labels={**pod_spec.get("labels", {}), **self.specific_labels("master")},
             pod_resources=pod_spec.get("resources", {}),
@@ -224,7 +233,8 @@ class LocustTest:
             master_svc=master_svc,
             worker_count=self.spec.get("workers", 1),
             cm_name=cm_name,
-            labels={**self.get_labels("worker")},
+            annotations=self.get_annotations(),
+            labels=self.get_labels("worker"),
             pod_annotations=pod_spec.get("annotations", {}),
             pod_labels={**pod_spec.get("labels", {}), **self.specific_labels("worker")},
             pod_resources=pod_spec.get("resources", {}),

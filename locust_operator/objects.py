@@ -37,10 +37,16 @@ def ensure(create, read, patch, desired):
 
 
 def build_configmap(
-    *, name: str, filename: str, content: str, labels: dict[str, str]
+    *,
+    name: str,
+    filename: str,
+    content: str,
+    annotations: dict[str, str],
+    labels: dict[str, str],
 ) -> client.V1ConfigMap:
     return client.V1ConfigMap(
         metadata=client.V1ObjectMeta(
+            annotations=annotations,
             labels=labels,
             name=name,
         ),
@@ -51,6 +57,7 @@ def build_configmap(
 def build_service(
     *,
     name: str,
+    annotations: dict[str, str],
     labels: dict[str, str],
     selector: dict[str, str],
     ports: list[ServicePort],
@@ -59,6 +66,7 @@ def build_service(
     return client.V1Service(
         metadata=client.V1ObjectMeta(
             name=name,
+            annotations=annotations,
             labels=labels,
         ),
         spec=client.V1ServiceSpec(
@@ -93,6 +101,7 @@ def build_master_job(
     args: str,
     env: dict,
     cm_name: str | None,
+    annotations: dict,
     labels: dict,
     pod_annotations: dict,
     pod_labels: dict,
@@ -131,6 +140,7 @@ def build_master_job(
     job = client.V1Job(
         metadata=client.V1ObjectMeta(
             name=name,
+            annotations=annotations,
             labels=labels,
         ),
         spec=client.V1JobSpec(
@@ -151,6 +161,7 @@ def build_worker_job(
     master_svc: str,
     worker_count: int,
     cm_name: str | None,
+    annotations: dict,
     labels: dict,
     pod_annotations: dict,
     pod_labels: dict,
@@ -184,6 +195,7 @@ def build_worker_job(
     job = client.V1Job(
         metadata=client.V1ObjectMeta(
             name=name,
+            annotations=annotations,
             labels=labels,
         ),
         spec=client.V1JobSpec(
