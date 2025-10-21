@@ -160,11 +160,16 @@ spec:
                 total_rps: { type: number }
                 user_count: { type: integer }
                 worker_count: { type: integer }
+                worker_ratio: { type: string }
       additionalPrinterColumns:
         - name: state
           description: Locust current state
           type: string
           jsonPath: .status.state
+        - name: workers
+          description: Locust connected workers / desired workers
+          type: string
+          jsonPath: .status.worker_ratio
         - name: fail_ratio
           description: Locust fail ratio
           type: string
@@ -177,10 +182,6 @@ spec:
           description: Locust user count
           type: string
           jsonPath: .status.user_count
-        - name: workers
-          description: Locust worker count
-          type: string
-          jsonPath: .status.worker_count
         - name: age
           type: date
           jsonPath: .metadata.creationTimestamp

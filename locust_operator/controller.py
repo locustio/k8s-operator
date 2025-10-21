@@ -263,6 +263,7 @@ class LocustTest:
                             "total_rps": int(stats.get("total_rps")),
                             "user_count": int(stats.get("user_count")),
                             "worker_count": int(stats.get("worker_count")),
+                            "worker_ratio": f"{stats.get('worker_count', 0)}/{self.spec.get('workers', 1)}",
                         }
                     },
                 )
