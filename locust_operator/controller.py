@@ -61,7 +61,7 @@ class LocustTest:
 
         self._patch.status["state"] = "CREATED"
 
-    def ensure_configmap(self) -> str:
+    def ensure_configmap(self) -> str | None:
         self._logger.debug("Ensuring up configmap")
         locustfile = self.spec.get("locustfile")
         if not locustfile:
@@ -138,7 +138,9 @@ class LocustTest:
         ensure(
             lambda svc=msvc: self._core.create_namespaced_service(self.namespace, svc),
             lambda: self._core.read_namespaced_service(name, self.namespace),
-            lambda svc=msvc: self._core.patch_namespaced_service(name, self.ns, svc),
+            lambda svc=msvc: self._core.patch_namespaced_service(
+                name, self.namespace, svc
+            ),
             msvc,
         )
 
@@ -177,7 +179,7 @@ class LocustTest:
 
         return name
 
-    def ensure_master(self, cm_name: str):
+    def ensure_master(self, cm_name: str | None):
         self._logger.debug("Ensuring locust master job")
         name = f"{self.name}-master"
 
@@ -185,7 +187,7 @@ class LocustTest:
 
         master = build_master_job(
             name=name,
-            image=self.spec.get("image"),
+            image=self.spec.get("image", ""),
             args=self.spec.get("args", ""),
             env=self.spec.get("env", []),
             cm_name=cm_name,
@@ -208,7 +210,7 @@ class LocustTest:
             master,
         )
 
-    def ensure_worker(self, cm_name: str, master_svc: str):
+    def ensure_worker(self, cm_name: str | None, master_svc: str):
         self._logger.debug("Ensuring locust worker job")
         name = f"{self.name}-worker"
 
@@ -216,7 +218,7 @@ class LocustTest:
 
         worker = build_worker_job(
             name=name,
-            image=self.spec.get("image"),
+            image=self.spec.get("image", ""),
             args=self.spec.get("args", ""),
             env=self.spec.get("env", []),
             master_svc=master_svc,
@@ -259,10 +261,10 @@ class LocustTest:
                     {
                         "status": {
                             "state": stats.get("state", "").upper(),
-                            "fail_ratio": f"{int(stats.get('fail_ratio')) * 100}%",
-                            "total_rps": int(stats.get("total_rps")),
-                            "user_count": int(stats.get("user_count")),
-                            "worker_count": int(stats.get("worker_count")),
+                            "fail_ratio": f"{int(stats.get('fail_ratio', 0)) * 100}%",
+                            "total_rps": int(stats.get("total_rps", 0)),
+                            "user_count": int(stats.get("user_count", 0)),
+                            "worker_count": int(stats.get("worker_count", 0)),
                             "worker_ratio": f"{stats.get('worker_count', 0)}/{self.spec.get('workers', 1)}",
                         }
                     },
@@ -286,10 +288,12 @@ class LocustTest:
             # to be shared with master service
             web_port = 8089
 
-            raw = self._core.connect_get_namespaced_service_proxy_with_path(
-                name=f"{self.get_webui_service_name()}:{web_port}",
-                namespace=self.namespace,
-                path=path,
+            raw = str(
+                self._core.connect_get_namespaced_service_proxy_with_path(
+                    name=f"{self.get_webui_service_name()}:{web_port}",
+                    namespace=self.namespace,
+                    path=path,
+                )
             )
             return ast.literal_eval(raw)
 

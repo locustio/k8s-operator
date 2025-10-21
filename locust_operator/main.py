@@ -55,7 +55,7 @@ def get_current_timestamp(logger: kopf.Logger, **_) -> str:
 
 @kopf.on.create(LOCUST_TEST_RESOURCE)
 def on_create(
-    name, namespace, patch: kopf.Patch, spec: kopf.Body, logger: kopf.Logger, **_
+    name, namespace, patch: kopf.Patch, spec: kopf.Spec, logger: kopf.Logger, **_
 ):
     logger.info(f"Initializing LocustTest name={name} namespace={namespace}")
 
@@ -82,7 +82,7 @@ async def stats_daemon(
     name,
     namespace,
     patch: kopf.Patch,
-    spec: kopf.Body,
+    spec: kopf.Spec,
     logger: kopf.Logger,
     stopped: kopf.DaemonStopped,
     **_,

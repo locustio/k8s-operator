@@ -19,7 +19,7 @@ def exists(read) -> bool:
     try:
         read()
         return True
-    except client.exceptions.ApiException as e:
+    except client.ApiException as e:
         if e.status == 404:
             return False
         raise
@@ -30,7 +30,7 @@ def ensure(create, read, patch, desired):
     try:
         read()
         return patch(desired)
-    except client.exceptions.ApiException as e:
+    except client.ApiException as e:
         if e.status == 404:
             return create(desired)
         raise
