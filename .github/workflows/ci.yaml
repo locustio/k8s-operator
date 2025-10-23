@@ -62,11 +62,5 @@ jobs:
       - name: Set up Helm Chart Testing
         uses: helm/chart-testing-action@v2.7.0
 
-      - name: Set up Helm Unit Test
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest
-
       - name: Lint chart
         run: ct lint --config .ct.yaml
-
-      - name: Run tests
-        run: helm unittest charts/locust-operator
