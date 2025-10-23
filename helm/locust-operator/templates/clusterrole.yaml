@@ -1,0 +1,23 @@
+{{- if and .Values.rbac.create .Values.rbac.cluster }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "locust-operator.serviceAccountName" . }}-clusterrole
+rules:
+  {{- include "locust-operator.rbacRules" . | nindent 2 }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "locust-operator.serviceAccountName" . }}-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "locust-operator.serviceAccountName" . }}-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: {{ include "locust-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
