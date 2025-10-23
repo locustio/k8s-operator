@@ -1,4 +1,4 @@
-FROM python:3.13-slim as builder
+FROM python:3.13-slim AS builder
 
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -14,8 +14,7 @@ ENV PYTHONUNBUFFERED=1
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /locust_operator
-COPY ./locust_operator .
+ADD ./locust_operator .
 
-ENTRYPOINT ["kopf", "run"]
-CMD ["main.py"]
+ENTRYPOINT ["kopf", "run", "main.py", "--liveness=http://0.0.0.0:8080/healthz"]
+CMD ["--all-namespaces"]
