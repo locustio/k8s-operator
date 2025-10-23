@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.7.2"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - run: uv venv
+
+      - name: Install dependencies
+        run: uv pip install -r requirements-test.txt
+
+      - name: Run tests
+        run: uv run pytest tests/
+
+      # - name: Debug Kubernetes resources
+      #   if: always()
+      #   run: |
+      #     kubectl get locustest -A
+      #     kubectl get all -A
+
+  chart-lint:
+    name: Chart / Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.x
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.2.0
+
+      - name: Set up Helm Chart Testing
+        uses: helm/chart-testing-action@v2.7.0
+
+      - name: Set up Helm Unit Test
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest
+
+      - name: Lint chart
+        run: ct lint --config .ct.yaml
+
+      - name: Run tests
+        run: helm unittest charts/locust-operator
