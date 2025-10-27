@@ -49,3 +49,4 @@ jobs:
         with:
           charts_dir: charts
           skip_existing: true
+          packages_with_index: true
