@@ -340,6 +340,10 @@ class LocustTest:
             try:
                 stats = self.fetch_stats(webui_svc_name, webui_svc_port)
 
+                worker_count = int(
+                    stats.get("worker_count", len(stats.get("workers", [])))
+                )
+
                 client.CustomObjectsApi().patch_namespaced_custom_object_status(
                     GROUP,
                     VERSION,
@@ -352,8 +356,8 @@ class LocustTest:
                             "fail_ratio": f"{int(stats.get('fail_ratio', 0)) * 100}%",
                             "total_rps": int(stats.get("total_rps", 0)),
                             "user_count": int(stats.get("user_count", 0)),
-                            "worker_count": int(stats.get("worker_count", 0)),
-                            "worker_ratio": f"{stats.get('worker_count', 0)}/{self.spec.get('workers', 1)}",
+                            "worker_count": worker_count,
+                            "worker_ratio": f"{worker_count}/{self.spec.get('workers', 1)}",
                         }
                     },
                 )
