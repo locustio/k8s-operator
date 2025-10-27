@@ -3,6 +3,7 @@ import random
 import time
 
 import kopf
+import requests
 from constants import GROUP, IN_CLUSTER, LABEL_ANNOTATION_PREFIX, PLURAL, VERSION
 from kubernetes import client
 from objects import (
@@ -195,6 +196,7 @@ class LocustTest:
             msvc,
         )
 
+        self._logger.info(f"Created master service {name}")
         return name
 
     def get_webui_service_name(self) -> str:
@@ -231,6 +233,7 @@ class LocustTest:
             msvc,
         )
 
+        self._logger.info(f"Created webui service {name}")
         return name
 
     def ensure_master(self, cm_name: str | None):
@@ -264,6 +267,8 @@ class LocustTest:
             ),
             master,
         )
+
+        self._logger.info(f"Created master job {name}")
 
     def ensure_worker(self, cm_name: str | None, master_svc: str):
         self._logger.debug("Ensuring locust worker job")
@@ -299,6 +304,8 @@ class LocustTest:
             worker,
         )
 
+        self._logger.info(f"Created worker job {name}")
+
     def delete_jobs(self):
         label_selector = to_label_selector_string(self.base_labels())
 
@@ -322,11 +329,16 @@ class LocustTest:
     async def stats_daemon(self, stopped: kopf.DaemonStopped):
         interval = self.spec.get("metrics", {}).get("intervalSeconds", 5)
 
+        webui_svc_name = self.get_webui_service_name()
+        # TODO: Should be configurable and come from centralized place
+        # to be shared with master service
+        webui_svc_port = 8089
+
         backoff = 1.0
         while not stopped.is_set():
             t0 = time.time()
             try:
-                stats = self.fetch_stats()
+                stats = self.fetch_stats(webui_svc_name, webui_svc_port)
 
                 client.CustomObjectsApi().patch_namespaced_custom_object_status(
                     GROUP,
@@ -356,17 +368,13 @@ class LocustTest:
             jitter = random.uniform(-0.2, 0.2) * interval
             await stopped.wait(max(0.0, base + jitter))
 
-    def fetch_stats(self):
+    def fetch_stats(self, svc: str, port: int):
         path = "stats/requests"
 
         if not IN_CLUSTER:
-            # TODO: Should be configurable and come from centralized place
-            # to be shared with master service
-            web_port = 8089
-
             raw = str(
                 self._core.connect_get_namespaced_service_proxy_with_path(
-                    name=f"{self.get_webui_service_name()}:{web_port}",
+                    name=f"{svc}:{port}",
                     namespace=self.namespace,
                     path=path,
                 )
@@ -374,5 +382,7 @@ class LocustTest:
             return ast.literal_eval(raw)
 
         else:
-            # TODO
-            return {}
+            response = requests.get(
+                f"http://{svc}.{self.namespace}.svc.cluster.local:{port}/{path}"
+            )
+            return response.json()
