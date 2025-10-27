@@ -19,7 +19,6 @@ spec:
       {{- end }}
       labels:
         {{- include "locust-operator.labels" . | nindent 8 }}
-        {{- include "locust-operator.selectorLabels" . | nindent 6 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
