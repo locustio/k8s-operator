@@ -1,5 +1,5 @@
 image:
-  repository: locust.io/locust-operator
+  repository: ghcr.io/locustcloud/locust-operator  # This is the image repository for the controller.
   tag: ""  # Overrides the image tag whose default is the chart appVersion.
   pullPolicy: IfNotPresent  # This sets the pull policy for images.
 
