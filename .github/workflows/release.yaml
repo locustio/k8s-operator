@@ -55,6 +55,8 @@ jobs:
 
       - name: Update Chart.yaml
         uses: mikefarah/yq@v4.48.1
+        env:
+          APP_VERSION: ${{ github.ref_name }}
         with:
           cmd: |
             CHART_FILE="charts/locust-operator/Chart.yaml"
@@ -67,7 +69,7 @@ jobs:
 
             yq -i "
               .version = \"${NEW_VERSION}\" |
-              .appVersion = \"${{ github.ref_name }}\"
+              .appVersion = \"${APP_VERSION}\"
             " "$CHART_FILE"
 
       - name: Create Pull Request
