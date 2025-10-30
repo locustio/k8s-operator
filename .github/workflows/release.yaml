@@ -57,23 +57,25 @@ jobs:
             CHART_FILE="charts/locust-operator/Chart.yaml"
 
             CURRENT_VERSION=$(yq '.version' "$CHART_FILE")
-            IFS='.' read -r MAJOR MINOR PATCH <<<"$CURRENT_VERSION"
+            MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
 
             PATCH=$((PATCH + 1))
             NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
-            yq -i "
-              .version = \"${NEW_VERSION}\" |
-              .appVersion = \"${APP_VERSION}\"
-            " "$CHART_FILE"
+            export NEW_VERSION
+
+            yq -i '.version = strenv(NEW_VERSION) | .appVersion = strenv(APP_VERSION)' "$CHART_FILE"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
-          commit-message: "chore(chart): Update chart appVersion to ${{ github.ref_name }}"
-          title: "chore(chart): Update chart appVersion to ${{ github.ref_name }}"
-          branch: chore/update-chart
+          commit-message: "chore(chart): Bump chart"
+          title: "chore(chart): Bump chart"
+          branch: chore/bump-chart
           delete-branch: true
+          base: master
           labels: |
             chart
             automated
