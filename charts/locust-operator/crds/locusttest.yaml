@@ -135,15 +135,8 @@ spec:
                   type: object
                   description: Locustfile
                   properties:
-                    inline:
-                      type: object
-                      properties:
-                        filename:
-                          type: string
-                          default: "locustfile.py"
-                        content:
-                          type: string
-                      required: ["content"]
+                    content:
+                      type: string
                     configMap:
                       type: object
                       properties:
@@ -151,7 +144,7 @@ spec:
                           type: string
                       required: ["name"]
                   oneOf:
-                    - required: ["inline"]
+                    - required: ["content"]
                     - required: ["configMap"]
                 metrics:
                   type: object

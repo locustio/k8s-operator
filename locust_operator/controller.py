@@ -117,7 +117,7 @@ class LocustTest:
         if not locustfile:
             return None
 
-        is_inline = "inline" in locustfile
+        is_inline = "content" in locustfile
 
         if not is_inline:
             existing_cm_name = locustfile.get("configMap", {}).get("name")
@@ -140,8 +140,8 @@ class LocustTest:
         self._logger.debug(f"Creating configmap {cm_name}.")
         cm = build_configmap(
             name=cm_name,
-            filename=locustfile.get("inline").get("filename"),
-            content=locustfile.get("inline").get("content"),
+            filename="locustfile.py",
+            content=locustfile.get("content"),
             labels=self.get_labels("configmap"),
             annotations=self.get_annotations(),
         )
