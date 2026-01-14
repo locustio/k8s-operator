@@ -1,4 +1,4 @@
 🚀 Locust Kubernetes Operator has been installed successfully!
 
 To learn how to create and run your first load test, see the official documentation:
-    - https://docs.locust.io/en/stable/locust-cloud/kubernetes-operator.html
+    - https://docs.locust.io/en/stable/kubernetes-operator.html

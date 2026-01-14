@@ -1,6 +1,6 @@
 import os
 
-GROUP = "locust.cloud"
+GROUP = "locust.io"
 VERSION = "v1"
 API_VERSION = GROUP + "/" + VERSION
 
