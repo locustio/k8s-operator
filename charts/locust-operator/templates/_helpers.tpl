@@ -73,7 +73,7 @@ RBAC rules for the operator
   resources: [namespaces]
   verbs: [list, watch]
 # Application
-- apiGroups: ["locust.cloud"]
+- apiGroups: ["locust.io"]
   resources: ["*"]
   verbs: ["*"]
 # Applcation: Managed resources
